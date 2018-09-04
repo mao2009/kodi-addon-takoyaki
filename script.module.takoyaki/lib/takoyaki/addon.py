@@ -7,6 +7,8 @@ import urlparse
 import pickle
 import requests
 
+from bs4 import BeautifulSoup
+
 import xbmc
 import xbmcgui
 import xbmcaddon
@@ -87,6 +89,13 @@ class Takoyaki(object):
             return self.session.post(url, data=query).text
 
         raise ValueError('Unexpected mode')
+
+    def parse_html(self, string):
+        if len(urlparse(string.scheme)) >= 1:
+            html = self.download_html(string)
+        else:
+            html = string
+        return BeautifulSoup(html)
 
     def end_of_directory(self):
         xbmcplugin.endOfDirectory(self.__handle__)
