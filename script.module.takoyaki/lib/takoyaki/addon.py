@@ -45,7 +45,8 @@ class Takoyaki(object):
         return session
 
     def run(self):
-        self.select_mode()
+        modes = None
+        self.select_mode(modes)
 
     def select_mode(self, modes, default_mode='top_menu'):
         mode = self.params.get('mode', default_mode)
