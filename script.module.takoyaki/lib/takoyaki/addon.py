@@ -105,3 +105,7 @@ class Takoyaki(object):
         li = xbmcgui.ListItem(*list_item)
         param_url = self.build_url(param)
         xbmcplugin.addDirectoryItem(handle=self.__handle__, url=param_url, listitem=li, isFolder=True)
+
+    def add_directries(self, param_list, list_items):
+        for param, list_item in zip(param_list, list_items):
+            self.add_directory(param, list_item)
