@@ -92,7 +92,7 @@ class Takoyaki(object):
         raise ValueError('Unexpected mode')
 
     def parse_html(self, string):
-        if len(urlparse(string.scheme)) >= 1:
+        if len(urlparse.urlparse(string).scheme) >= 1:
             html = self.download_html(string)
         else:
             html = string
@@ -102,9 +102,13 @@ class Takoyaki(object):
         xbmcplugin.endOfDirectory(self.__handle__)
 
     def add_directory(self, param, list_item):
-        li = xbmcgui.ListItem(*list_item)
+        li = xbmcgui.ListItem(**list_item)
         param_url = self.build_url(param)
         xbmcplugin.addDirectoryItem(handle=self.__handle__, url=param_url, listitem=li, isFolder=True)
+
+    def add_media_file(self, url, list_item):
+        li = xbmcgui.ListItem(**list_item)
+        xbmcplugin.addDirectoryItem(handle=self.__handle__, url=url, listitem=li, isFolder=False)
 
     def add_directries(self, param_list, list_items):
         for param, list_item in zip(param_list, list_items):
