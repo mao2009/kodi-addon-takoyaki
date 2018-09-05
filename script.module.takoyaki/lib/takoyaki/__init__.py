@@ -111,9 +111,11 @@ class Takoyaki(object):
         xbmcplugin.addDirectoryItem(handle=self.__handle__, url=url, listitem=li, isFolder=False)
 
     @classmethod
-    def play_media(cls, item, list_item, info, properties):
+    def play_media(cls, item, list_item, info=None, properties=None):
 
         li = xbmcgui.ListItem(**list_item)
-        li.setInfo(*info)
-        li.setProperty(*properties)
+        if info is not None:
+            li.setInfo(*info)
+        if properties is not None:
+            li.setProperty(*properties)
         xbmc.Player().play(item=item, listitem=li)
