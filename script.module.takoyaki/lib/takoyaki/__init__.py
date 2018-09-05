@@ -115,7 +115,7 @@ class Takoyaki(object):
 
         li = xbmcgui.ListItem(**list_item)
         if info is not None:
-            li.setInfo(*info)
+            li.setInfo(**info)
         if properties is not None:
             li.setProperty(*properties)
         xbmc.Player().play(item=item, listitem=li)
