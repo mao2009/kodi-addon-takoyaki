@@ -15,8 +15,9 @@ import xbmcaddon
 import xbmcplugin
 
 
-class Takoyaki(object):
 
+class Takoyaki(object):
+    from tool import logger
     USER_AGENT = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
 
     __base__url = sys.argv[0]
@@ -119,3 +120,4 @@ class Takoyaki(object):
         if properties is not None:
             li.setProperty(*properties)
         xbmc.Player().play(item=item, listitem=li)
+
