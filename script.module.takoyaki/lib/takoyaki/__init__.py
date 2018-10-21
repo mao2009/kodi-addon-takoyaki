@@ -15,7 +15,6 @@ import xbmcaddon
 import xbmcplugin
 
 
-
 class Takoyaki(object):
     from tool import logger
     USER_AGENT = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
@@ -107,8 +106,12 @@ class Takoyaki(object):
         param_url = self.build_url(param)
         xbmcplugin.addDirectoryItem(handle=self.__handle__, url=param_url, listitem=li, isFolder=True)
 
-    def add_media_file(self, url, list_item):
+    def add_media_file(self, url, list_item, info=None, properties=None):
         li = xbmcgui.ListItem(**list_item)
+        if info is not None:
+            li.setInfo(*info)
+        if properties is not None:
+            li.setProperty(*properties)
         xbmcplugin.addDirectoryItem(handle=self.__handle__, url=url, listitem=li, isFolder=False)
 
     @classmethod
@@ -116,7 +119,7 @@ class Takoyaki(object):
 
         li = xbmcgui.ListItem(**list_item)
         if info is not None:
-            li.setInfo(**info)
+            li.setInfo(*info)
         if properties is not None:
             li.setProperty(*properties)
         xbmc.Player().play(item=item, listitem=li)
