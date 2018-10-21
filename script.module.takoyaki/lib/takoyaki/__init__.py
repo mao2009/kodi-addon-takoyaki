@@ -98,7 +98,9 @@ class Takoyaki(object):
             html = string
         return BeautifulSoup(html)
 
-    def end_of_directory(self):
+    def end_of_directory(self, mode=None):
+        if mode is not None:
+            xbmcplugin.setContent(self.__handle__, mode)
         xbmcplugin.endOfDirectory(self.__handle__)
 
     def add_directory(self, param, list_item):
