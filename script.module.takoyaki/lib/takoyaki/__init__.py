@@ -16,7 +16,6 @@ import xbmcplugin
 
 
 class Takoyaki(object):
-    from tool import logger
     USER_AGENT = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
 
     __base__url = sys.argv[0]
