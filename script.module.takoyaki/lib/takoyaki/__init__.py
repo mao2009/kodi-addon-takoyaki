@@ -9,6 +9,8 @@ import requests
 
 from bs4 import BeautifulSoup
 
+import urlresolver
+
 import xbmc
 import xbmcgui
 import xbmcaddon
@@ -125,3 +127,6 @@ class Takoyaki(object):
             li.setProperty(*properties)
         xbmc.Player().play(item=item, listitem=li)
 
+    @classmethod
+    def resolve_url(cls, url):
+        return urlresolver.resolve(url)
