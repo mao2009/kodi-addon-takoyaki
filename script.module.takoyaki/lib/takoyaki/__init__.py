@@ -2,14 +2,11 @@
 
 import os
 import sys
-import urllib
-import urlparse
 import pickle
+from urllib.parse import urljoin, urlencode, parse_qs, urlparse
 import requests
 
 from bs4 import BeautifulSoup
-
-import urlresolver
 
 import xbmc
 import xbmcgui
@@ -71,16 +68,16 @@ class Takoyaki(object):
     def url_join(cls, base, *urls):
         jointed_url = base
         for url in urls:
-            jointed_url = urlparse.urljoin(jointed_url,url)
+            jointed_url = urljoin(jointed_url,url)
         return jointed_url
 
     @classmethod
     def build_url(cls, query):
-        return sys.argv[0] + '?' + urllib.urlencode(query)
+        return sys.argv[0] + '?' + urlencode(query)
 
     @classmethod
     def parse_parameter(cls):
-        params = urlparse.parse_qs(sys.argv[2][1:])
+        params = parse_qs(sys.argv[2][1:])
         return {key: value[0] for key, value in params.items()}
 
     def download_html(self, url, mode='get', query={}):
@@ -93,7 +90,7 @@ class Takoyaki(object):
         raise ValueError('Unexpected mode')
 
     def parse_html(self, string):
-        if len(urlparse.urlparse(string).scheme) >= 1:
+        if len(urlparse(string).scheme) >= 1:
             html = self.download_html(string)
         else:
             html = string
@@ -126,7 +123,3 @@ class Takoyaki(object):
         if properties is not None:
             li.setProperty(*properties)
         xbmc.Player().play(item=item, listitem=li)
-
-    @classmethod
-    def resolve_url(cls, url):
-        return urlresolver.resolve(url)
