@@ -9,12 +9,21 @@ import requests
 from bs4 import BeautifulSoup
 
 import xbmc
+import xbmcvfs
 import xbmcgui
 import xbmcaddon
 import xbmcplugin
 
+from enum import Enum
+
 
 class Takoyaki(object):
+
+    class ImageSet(Enum):
+        ICON = "icon"
+        THUMB = "thumb"
+        FANART = "fanart"
+        
     USER_AGENT = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
 
     __base__url = sys.argv[0]
@@ -25,7 +34,7 @@ class Takoyaki(object):
 
     def __init__(self):
 
-        self.__addon_user_data__ = xbmc.translatePath(self.path_join('special://userdata/addon_data', self.__addon_id__))
+        self.__addon_user_data__ = xbmcvfs.translatePath(self.path_join('special://userdata/addon_data', self.__addon_id__))
         self.params = self.parse_parameter()
         self.is_login = self.__addon__.getSetting('login')
         if self.is_login:
@@ -101,13 +110,18 @@ class Takoyaki(object):
             xbmcplugin.setContent(self.__handle__, mode)
         xbmcplugin.endOfDirectory(self.__handle__)
 
-    def add_directory(self, param, list_item):
+    def add_directory(self, param, list_item, images=None):
         li = xbmcgui.ListItem(**list_item)
+        if images is not None:
+            li.setArt(images)
+
         param_url = self.build_url(param)
         xbmcplugin.addDirectoryItem(handle=self.__handle__, url=param_url, listitem=li, isFolder=True)
 
-    def add_media_file(self, url, list_item, info=None, properties=None):
+    def add_media_file(self, url, list_item, images=None, info=None, properties=None):
         li = xbmcgui.ListItem(**list_item)
+        if images is not None:
+            li.setArt(images)
         if info is not None:
             li.setInfo(*info)
         if properties is not None:
