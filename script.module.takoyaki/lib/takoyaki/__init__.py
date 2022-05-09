@@ -23,6 +23,16 @@ class Takoyaki(object):
         ICON = "icon"
         THUMB = "thumb"
         FANART = "fanart"
+
+    class LogLevel(Enum):
+        DEBUG = xbmc.LOGDEBUG
+        INFO = xbmc.LOGINFO
+        # NOTICE = xbmc.LOGNOTICE
+        WARNING = xbmc.LOGWARNING
+        ERROR = xbmc.LOGERROR
+        # SEVERE = xbmc.LOGSEVERE
+        FATAL = xbmc.LOGFATAL
+        NONE  = xbmc.LOGNONE     
         
     USER_AGENT = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
 
@@ -137,3 +147,17 @@ class Takoyaki(object):
         if properties is not None:
             li.setProperty(*properties)
         xbmc.Player().play(item=item, listitem=li)
+
+    @classmethod
+    def log(cls, message, log_level):
+        xbmc.log(message, log_level.value)
+
+    @classmethod
+    def get_search_string(cls, message='', heading=''):
+        search_string = None
+        keyboard = xbmc.Keyboard(message, heading)
+        keyboard.doModal()
+        if keyboard.isConfirmed():
+            search_string = keyboard.getText()
+        return search_string
+
