@@ -208,7 +208,7 @@ class Takoyaki(object):
         return title if  title != "" else None
 
     @classmethod
-    def get_entry_imag_url(cls, entry):
+    def get_entry_img_url(cls, entry):
         if entry.img is None:
             element = entry
         else:
@@ -265,7 +265,7 @@ class Takoyaki(object):
 
             title = self.get_entry_title(entry)
             
-            img_url = self.get_entry_imag_url(entry)
+            img_url = self.get_entry_img_url(entry)
 
 
             if link is None or title is None or img_url is None:
@@ -359,7 +359,7 @@ class Takoyaki(object):
     @classmethod
     def get_series_title(cls, entry): return cls.get_entry_title(entry)
     @classmethod
-    def get_series_img_url(cls, entry): return cls.get_entry_imag_url(entry)
+    def get_series_img_url(cls, entry): return cls.get_entry_img_url(entry)
 
     def series_mode(self):
         link = self.params['link']
@@ -393,7 +393,7 @@ class Takoyaki(object):
     @classmethod
     def get_episode_title(cls, entry): return cls.get_entry_title(entry)
     @classmethod
-    def get_episode_img_url(cls, entry): return cls.get_entry_imag_url(entry)
+    def get_episode_img_url(cls, entry): return cls.get_entry_img_url(entry)
     def episode_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
