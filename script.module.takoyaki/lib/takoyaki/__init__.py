@@ -174,7 +174,7 @@ class Takoyaki(object):
     SEARCH_URL = ""
     ICON_URL = ""
     
-    ENTRY_SELECTOR = "articl"
+    ENTRY_SELECTOR = "article"
     SERIES_SELECTOR = ENTRY_SELECTOR
     EPISODE_SELECTOR = ENTRY_SELECTOR
 
