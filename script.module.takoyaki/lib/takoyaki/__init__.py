@@ -235,7 +235,7 @@ class Takoyaki(object):
     @classmethod
     def get_next_page_url(cls, parser):
         next_page = parser.select('.next')
-        if len(next_page):
+        if len(next_page) == 0:
             next_page = parser.select('[rel="next"]')[0]["href"]
         else:
             next_page = next_page[0]["href"]
@@ -334,7 +334,7 @@ class Takoyaki(object):
     def get_item_list_by_letter(cls,letter, items):
         items = [item for item in items if item["title"] is not None]
         if letter == "#":
-            return [item for item in items if item["title"][0] >= "0" and item[0] <= "9" ]
+            return [item for item in items if item["title"][0] >= "0" and item["title"][0] <= "9" ]
         else:
             return [item for item in items if item["title"][0].upper() == letter]
 
@@ -397,7 +397,7 @@ class Takoyaki(object):
     def episode_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        entries = parser.select(self.ENTRY_SELECTOR)
+        entries = parser.select(self.EPISODE_SELECTOR)
 
         for entry in entries:
             link = self.get_episode_url(entry)
