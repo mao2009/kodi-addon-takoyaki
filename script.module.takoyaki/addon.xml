@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.module.takoyaki" name="TAKOYAKI" version="0.1.4" provider-name="mao2009">
+<addon id="script.module.takoyaki" name="TAKOYAKI" version="0.2.0" provider-name="mao2009">
 	<requires>
 		<import addon="xbmc.python" version="3.0.0"/>
 		<import addon="script.module.requests"/>
@@ -13,5 +13,10 @@
 		<license>GNU GPL v.2</license>
 		<website>https://mao2009.github.io/maorepo/</website>
 		<source>https://github.com/mao2009/maorepo</source>
+	</extension>
+	<extension point="xbmc.addon.metadata">
+		<assets>
+            <icon>resources/icon.png</icon>
+        </assets>
 	</extension>
 </addon>
