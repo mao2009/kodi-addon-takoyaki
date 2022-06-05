@@ -463,11 +463,24 @@ class Takoyaki(object):
         link = self.params['link']
         meida_url_lsit = self.get_media_url_list(link)
         if len(meida_url_lsit) == 1:
-            self.play_media(meida_url_lsit[0], {"label": self.params["title"]})
+            meida_url = meida_url_lsit[0]
+            if meida_url is str:
+                self.play_media(meida_url, {"label": self.params["title"]})
+            else:
+                url = meida_url["src"]
+                # label = meida_url["label"]
+                self.play_media(url, {"label": self.params["title"]})
             return
 
-        for i, url in enumerate(meida_url_lsit, 1):
-            self.add_default_directory("play", url, "Source " + str(i), self.params["imag_url"])
+        for i, meida_url in enumerate(meida_url_lsit, 1):
+            if meida_url is str:
+                self.add_default_directory("play", meida_url, "Source " + str(i), self.params.get("imag_url", ""))
+            else:
+                url = meida_url["src"]
+                label = meida_url["label"]
+                self.add_default_directory("play", url, label, self.params.get("imag_url", ""))
+
+        self.end_of_directory()
 
     def play(self):
         link = self.params['link']
