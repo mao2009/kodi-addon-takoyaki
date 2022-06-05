@@ -2,6 +2,7 @@ import os
 import sys
 import re
 from urllib.parse import urljoin, urlencode, parse_qs, urlparse
+from xml.dom.minidom import Element
 import requests
 
 from bs4 import BeautifulSoup
@@ -180,26 +181,45 @@ class Takoyaki(object):
 
     @classmethod
     def get_entry_url(cls, entry):
-        url = entry.get("href", None)
+        if len(entry.select("a")) >= 1:
+            element = entry.a
+        else:
+            element = entry
+
+        url = element.get("href", None)
         if url is not None:
             return cls.abs_url(url)
-
-        return cls.abs_url(entry.a.get("href",None))
+        url = element.get("href", None)
+        if url is None:
+            return None
+        return cls.abs_url(url)
 
     @classmethod
     def get_entry_title(cls, entry):
-        title = entry.a.get("title", None)
+        if len(entry.select("a")) >= 1:
+            element = entry.a
+        else:
+            element = entry
+
+        title = element.get("title", None)
         if title is None:
-            title = entry.a.text.strip()
+            title = element.text.strip()
 
         return title if  title != "" else None
 
     @classmethod
     def get_entry_imag_url(cls, entry):
-        img_url = entry.img.get("data-src", None)
-        if img_url is None:
-            img_url = entry.img.get("src", None)
+        if entry.img is None:
+            element = entry
+        else:
+            element = entry.img
 
+        img_url = element.get("data-src", None)
+        if img_url is None:
+            img_url = element.get("src", None)
+        
+        if img_url is None:
+            return None
         return cls.abs_url(img_url)
 
     def add_default_directory(self, mode, link, title, img_url):
@@ -265,31 +285,22 @@ class Takoyaki(object):
     TAG_MODE = "entry"
 
     @classmethod
-    def get_tag_url(self, tag):
-        if len(tag.select("[href]")) >= 1:
-            return tag["href"]
-        else:
-            return tag.a["href"]
-
-    def get_tag_title(self, tag):
-        if tag.name == "a":
-            title = tag.get("title", None)
-            if title is None:
-                title = title.text
-        else:
-            title = tag.a.get("title", None)
-            if title is None:
-                title = title.text
-
+    def get_tag_url(cls, entry): return cls.get_entry_url(entry)
+    @classmethod
+    def get_tag_title(cls, entry): return cls.get_entry_title(entry)
+    @classmethod
+    def get_tag_img_url(cls, entry):
+         return cls.ICON_URL
+    
     def tag_list_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        tags =  parser.select(self.TAG_LIST_SELECTOR)[0]
+        tags =  parser.select(self.TAG_LIST_SELECTOR)
             
         for tag in tags:
             link = self.get_tag_url(tag)
             title = self.get_tag_title(tag)
-            img_url = self.ICON_URL
+            img_url = self.get_tag_img_url(tag)
 
             self.add_default_directory(self.TAG_MODE, link, title, img_url)
         self.end_of_directory()
@@ -315,36 +326,40 @@ class Takoyaki(object):
     LETTER_SELECTOR = "li"
     LETTER_ITEM_MODE = "series"
     @classmethod
-    def get_letter_item_url(cls, entry): cls.get_entry_url(entry)
+    def get_letter_item_url(cls, entry): return cls.get_entry_url(entry)
     @classmethod
-    def get_letter_item_title(cls, entry): cls.get_entry_title(entry)
+    def get_letter_item_title(cls, entry): return cls.get_entry_title(entry)
     
     @classmethod
     def get_item_list_by_letter(cls,letter, items):
+        items = [item for item in items if item["title"] is not None]
         if letter == "#":
-            return [item for item in items if item[0] >= "0" and item[0] <= "9"]
+            return [item for item in items if item["title"][0] >= "0" and item[0] <= "9" ]
         else:
-            return [item for item in items if item[0].upper() == letter]
+            return [item for item in items if item["title"][0].upper() == letter]
 
     def letter_item_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
         entries = parser.select(self.LETTER_SELECTOR)
         letter = self.params["title"]
-        entries = self.get_item_list_by_letter(letter, entries)
-        for entry in entries:
-            link = self.get_series_url(entry)
-            title = self.get_series_title(entry)
+        items = [{"link": self.get_letter_item_url(item),
+                "title": self.get_letter_item_title(item)}
+                for item in entries]
+        items = self.get_item_list_by_letter(letter, items)
+        for item in items:
+            link = item["link"]
+            title = item["title"]
 
             self.add_default_directory(self.LETTER_ITEM_MODE, link, title, "")
         self.end_of_directory()
     
     @classmethod
-    def get_series_url(cls, entry): cls.get_entry_url(entry)
+    def get_series_url(cls, entry): return cls.get_entry_url(entry)
     @classmethod
-    def get_series_title(cls, entry): cls.get_entry_title(entry)
+    def get_series_title(cls, entry): return cls.get_entry_title(entry)
     @classmethod
-    def get_series_img_url(cls, entry): cls.get_entry_imag_url(entry)
+    def get_series_img_url(cls, entry): return cls.get_entry_imag_url(entry)
 
     def series_mode(self):
         link = self.params['link']
@@ -374,11 +389,11 @@ class Takoyaki(object):
 
     
     @classmethod
-    def get_episode_url(cls, entry): cls.get_entry_url(entry)
+    def get_episode_url(cls, entry): return cls.get_entry_url(entry)
     @classmethod
-    def get_episode_title(cls, entry): cls.get_entry_title(entry)
+    def get_episode_title(cls, entry): return cls.get_entry_title(entry)
     @classmethod
-    def get_episode_img_url(cls, entry): cls.get_entry_imag_url(entry)
+    def get_episode_img_url(cls, entry): return cls.get_entry_imag_url(entry)
     def episode_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
