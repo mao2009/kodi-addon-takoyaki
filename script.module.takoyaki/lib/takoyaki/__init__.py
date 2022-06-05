@@ -1,11 +1,7 @@
-from multiprocessing import set_forkserver_preload
-from ntpath import join
 import os
 import sys
 import re
-from tkinter import E
 from urllib.parse import urljoin, urlencode, parse_qs, urlparse
-from webbrowser import get
 import requests
 
 from bs4 import BeautifulSoup
