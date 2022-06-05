@@ -1,7 +1,9 @@
+from multiprocessing import set_forkserver_preload
 from ntpath import join
 import os
 import sys
 import re
+from tkinter import E
 from urllib.parse import urljoin, urlencode, parse_qs, urlparse
 from webbrowser import get
 import requests
@@ -172,11 +174,13 @@ class Takoyaki(object):
 
     USER_AGENT = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
     BASE_URL =""
-    SEARCH_URL =""
+    SEARCH_URL = ""
     ICON_URL = ""
     
-    ENTRY_SELECTOT = "articl"
-    ENTRY_TITLE_ATRR = "title"
+    ENTRY_SELECTOR = "articl"
+    SERIES_SELECTOR = ENTRY_SELECTOR
+    EPISODE_SELECTOR = ENTRY_SELECTOR
+
 
     @classmethod
     def get_entry_url(cls, entry):
@@ -238,7 +242,7 @@ class Takoyaki(object):
     def entry_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        entries = parser.select(self.ENTRY_SELECTOT)
+        entries = parser.select(self.ENTRY_SELECTOR)
 
         for entry in entries:
             link = self.get_entry_url(entry)
@@ -294,7 +298,7 @@ class Takoyaki(object):
             self.add_default_directory(self.TAG_MODE, link, title, img_url)
         self.end_of_directory()
 
-    LETTER_MODE = "entry"
+    LETTER_MODE = "letter_item"
     LETTER_URL_SUFFIX =""
     def get_letter_url(self, letter ):
         url_suffix = "0-9" if letter == "#" else letter
@@ -307,27 +311,118 @@ class Takoyaki(object):
 
         for letter in letters:
             url = self.get_letter_url(letter)
-            self.add_default_directory(self.LETTER_MODE, url,letter, self.ICON_URL)
-            params = {'mode': 'series', 'link': url, 'site': self.SITE}
-           
-            list_item = {'label': letter}
-            self.add_directory(params, list_item)
+  
+            self.add_default_directory(self.LETTER_MODE, url, letter, self.ICON_URL)
 
         self.end_of_directory()
+    
+    LETTER_SELECTOR = "li"
+    LETTER_ITEM_MODE = "series"
+    @classmethod
+    def get_letter_item_url(cls, entry): cls.get_entry_url(entry)
+    @classmethod
+    def get_letter_item_title(cls, entry): cls.get_entry_title(entry)
+    
+    @classmethod
+    def get_item_list_by_letter(cls,letter, items):
+        if letter == "#":
+            return [item for item in items if item[0] >= "0" and item[0] <= "9"]
+        else:
+            return [item for item in items if item[0].upper() == letter]
+
+    def letter_item_mode(self):
+        link = self.params['link']
+        parser = self.parse_html(link)
+        entries = parser.select(self.LETTER_SELECTOR)
+        letter = self.params["title"]
+        entries = self.get_item_list_by_letter(letter, entries)
+        for entry in entries:
+            link = self.get_series_url(entry)
+            title = self.get_series_title(entry)
+
+            self.add_default_directory(self.LETTER_ITEM_MODE, link, title, "")
+        self.end_of_directory()
+    
+    @classmethod
+    def get_series_url(cls, entry): cls.get_entry_url(entry)
+    @classmethod
+    def get_series_title(cls, entry): cls.get_entry_title(entry)
+    @classmethod
+    def get_series_img_url(cls, entry): cls.get_entry_imag_url(entry)
+
+    def series_mode(self):
+        link = self.params['link']
+        parser = self.parse_html(link)
+        entries = parser.select(self.ENTRY_SELECTOR)
+
+        for entry in entries:
+            link = self.get_series_url(entry)
+
+            title = self.get_series_title(entry)
+            
+            img_url = self.get_series_img_url(entry)
+
+
+            if link is None or title is None or img_url is None:
+                continue
+
+            self.add_default_directory('episode', link, title, img_url)
+
+        try:
+            next_page = self.get_next_page_url(parser)
+            self.add_default_directory("series", next_page, "Next", self.ICON_URL)
+        except (AttributeError, IndexError):
+            pass
+        
+        self.end_of_directory()
+
+    
+    @classmethod
+    def get_episode_url(cls, entry): cls.get_entry_url(entry)
+    @classmethod
+    def get_episode_title(cls, entry): cls.get_entry_title(entry)
+    @classmethod
+    def get_episode_img_url(cls, entry): cls.get_entry_imag_url(entry)
+    def episode_mode(self):
+        link = self.params['link']
+        parser = self.parse_html(link)
+        entries = parser.select(self.ENTRY_SELECTOR)
+
+        for entry in entries:
+            link = self.get_episode_url(entry)
+
+            title = self.get_episode_title(entry)
+            
+            img_url = self.get_episode_img_url(entry)
+
+
+            if link is None or title is None or img_url is None:
+                continue
+
+            self.add_default_directory('play_list', link, title, img_url)
+
+        try:
+            next_page = self.get_next_page_url(parser)
+            self.add_default_directory("episode", next_page, "Next", self.ICON_URL)
+        except (AttributeError, IndexError):
+            pass
+        
+        self.end_of_directory()
+
 
     @classmethod
-    def normalasze_query(cls, query):
+    def normalaze_query(cls, query):
         return query.strip().replace(" ", "+")
 
     def search(self):
 
         query = self.get_search_string()
-        query = self.nomalaze_uqery(query)
+        query = self.normalaze_query(query)
         
         url = self.params['link'].format(query)
         mode = self.params.get("target_mode", "entry")
     
-        params = {'mode': mode, 'site': self.__name__, 'link': url}
+        params = {'mode': mode, 'site': self.SITE, 'link': url}
         list_item = {'label': query}
         self.add_directory(params, list_item)
         self.end_of_directory()
@@ -375,6 +470,7 @@ class Takoyaki(object):
                 'link': self.BASE_URL},
             {'title': 'Search',
                 'mode': "search",
+                'target_mode': "entrys",
                 "link": self.SEARCH_URL}
         ]
 
@@ -394,6 +490,10 @@ class Takoyaki(object):
                 'entry': self.entry_mode,
                 'play_list': self.play_list,
                 'play': self.play,
+                'letters': self.letter_mode,
+                'letter_item': self.letter_item_mode,
+                'series': self.series_mode,
+                'episode': self.episode_mode,
                 'tag_list': self.tag_list_mode,
                 'search': self.search,
             }
