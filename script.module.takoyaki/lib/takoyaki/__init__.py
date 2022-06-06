@@ -2,7 +2,6 @@ import os
 import sys
 import re
 from urllib.parse import urljoin, urlencode, parse_qs, urlparse
-from xml.dom.minidom import Element
 import requests
 
 from bs4 import BeautifulSoup
@@ -195,7 +194,7 @@ class Takoyaki(object):
         return cls.abs_url(url)
 
     @classmethod
-    def get_entry_title(cls, entry):
+    def get_entry_title(cls, entry: BeautifulSoup):
         if len(entry.select("a")) >= 1:
             element = entry.a
         else:
@@ -208,7 +207,7 @@ class Takoyaki(object):
         return title if  title != "" else None
 
     @classmethod
-    def get_entry_img_url(cls, entry):
+    def get_entry_img_url(cls, entry: BeautifulSoup):
         if entry.img is None:
             element = entry
         else:
@@ -473,7 +472,7 @@ class Takoyaki(object):
         meida_url_lsit = self.get_media_url_list(link)
         if len(meida_url_lsit) == 1:
             meida_url = meida_url_lsit[0]
-            if meida_url is str:
+            if type(meida_url) is str:
                 self.play_media(meida_url, {"label": self.params["title"]})
             else:
                 url = meida_url["src"]
@@ -482,7 +481,7 @@ class Takoyaki(object):
             return
 
         for i, meida_url in enumerate(meida_url_lsit, 1):
-            if meida_url is str:
+            if type(meida_url) is str:
                 self.add_default_directory("play", meida_url, "Source " + str(i), self.params.get("imag_url", ""))
             else:
                 url = meida_url["src"]
