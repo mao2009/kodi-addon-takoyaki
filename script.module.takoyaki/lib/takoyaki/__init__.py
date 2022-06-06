@@ -235,10 +235,19 @@ class Takoyaki(object):
     @classmethod
     def get_next_page_url(cls, parser):
         next_page = parser.select('.next')
+
         if len(next_page) == 0:
-            next_page = parser.select('[rel="next"]')[0]["href"]
+            next_page = parser.select('[rel="next"]')
+
+        if len(next_page) == 0:
+            return None
+
+        if len(next_page.select("a")) != 0:
+            next_page = next_page.a
         else:
-            next_page = next_page[0]["href"]
+            next_page = next_page[0]
+        
+        next_page = next_page["href"]
 
         return cls.abs_url(next_page)
 
@@ -487,13 +496,13 @@ class Takoyaki(object):
         self.play_media(link, {"label": self.params["title"]})
 
 
-    MEDIA_FILE_SELECTOR = ".thum"
+    MEDIA_FILE_SELECTOR = ".thumb"
     @classmethod
     def get_media_file_url(cls, entry): return cls.get_entry_url(entry)
     @classmethod
-    def get_media_title(cls, entry): return cls.get_entry_title(entry)
+    def get_media_file_title(cls, entry): return cls.get_entry_title(entry)
     @classmethod
-    def get_media_img_url(cls, entry): return cls.get_entry_img_url(entry)
+    def get_media_file_img_url(cls, entry): return cls.get_entry_img_url(entry)
 
     def media_file_mode(self):
         link = self.params['link']
@@ -502,12 +511,23 @@ class Takoyaki(object):
         entries = parser.select(self.MEDIA_FILE_SELECTOR)
         for entry in entries:
             link = self.get_media_file_url(entry)
-            title = self.get_media_title(entry)
-            img_url = self.get_media_img_url(entry)
+            title = self.get_media_file_title(entry)
+            if title is None:
+                title = "Page " + str(next(self.generate_page_index))
+
+            img_url = self.get_media_file_img_url(entry)
             list_item = {'label': title}
             images = {self.ImageSet.THUMB.value: img_url}
             self.add_media_file(img_url, list_item=list_item, images=images)
         self.end_of_directory()
+
+    def get_page_index():
+        index = 1
+        while True:
+            yield index
+            index += 1
+
+    generate_page_index = get_page_index()
 
     def get_top_menus(self):
         menus = [
