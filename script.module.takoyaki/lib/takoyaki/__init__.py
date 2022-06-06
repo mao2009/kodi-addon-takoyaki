@@ -487,6 +487,28 @@ class Takoyaki(object):
         self.play_media(link, {"label": self.params["title"]})
 
 
+    MEDIA_FILE_SELECTOR = ".thum"
+    @classmethod
+    def get_media_file_url(cls, entry): return cls.get_entry_url(entry)
+    @classmethod
+    def get_media_title(cls, entry): return cls.get_entry_title(entry)
+    @classmethod
+    def get_media_img_url(cls, entry): return cls.get_entry_img_url(entry)
+
+    def media_file_mode(self):
+        link = self.params['link']
+        
+        parser = self.parse_html(link)
+        entries = parser.select(self.MEDIA_FILE_SELECTOR)
+        for entry in entries:
+            link = self.get_media_file_url(entry)
+            title = self.get_media_title(entry)
+            img_url = self.get_media_img_url(entry)
+            list_item = {'label': title}
+            images = {self.ImageSet.THUMB.value: img_url}
+            self.add_media_file(img_url, list_item=list_item, images=images)
+        self.end_of_directory()
+
     def get_top_menus(self):
         menus = [
             {'title': 'Home',
@@ -514,6 +536,7 @@ class Takoyaki(object):
                 'entry': self.entry_mode,
                 'play_list': self.play_list,
                 'play': self.play,
+                'media_file': self.media_file_mode,
                 'letters': self.letter_mode,
                 'letter_item': self.letter_item_mode,
                 'series': self.series_mode,
