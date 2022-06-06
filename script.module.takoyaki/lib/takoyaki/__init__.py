@@ -254,7 +254,7 @@ class Takoyaki(object):
         list_item = {'label': 'Next'}
         self.add_directory(params, list_item, images)
         
-
+    ENTRY_MODE = "play_list"
     def entry_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
@@ -271,7 +271,7 @@ class Takoyaki(object):
             if link is None or title is None or img_url is None:
                 continue
 
-            self.add_default_directory('play_list', link, title, img_url)
+            self.add_default_directory(self.ENTRY_MODE, link, title, img_url)
 
         try:
             next_page = self.get_next_page_url(parser)
