@@ -148,13 +148,15 @@ class Takoyaki(object):
         xbmcplugin.addDirectoryItem(handle=self.__handle__, url=url, listitem=li, isFolder=False)
 
     @classmethod
-    def play_media(cls, item, list_item, info=None, properties=None):
+    def play_media(cls, item, list_item, images = None, info=None, properties=None):
 
         li = xbmcgui.ListItem(**list_item)
         if info is not None:
             li.setInfo(*info)
         if properties is not None:
             li.setProperty(*properties)
+        if images is not None:
+            li.setArt(images)
         xbmc.Player().play(item=item, listitem=li)
 
     @classmethod
@@ -227,7 +229,8 @@ class Takoyaki(object):
         params = {'mode': mode, 'link': link,'title': title, 'img_url': img_url, 'site': self.SITE}
         images = { 
             self.ImageSet.ICON.value: img_url,
-            self.ImageSet.FANART.value: img_url
+            self.ImageSet.FANART.value: img_url,
+            self.ImageSet.THUMB.value: img_url
         }
 
         list_item = {"label" : title}
@@ -253,13 +256,10 @@ class Takoyaki(object):
         return cls.abs_url(next_page)
 
     def add_next_directory(self, parser):
-        next_page = self.get_next_page_url
+        next_page = self.get_next_page_url(parser)
         
         params = {'mode': 'entry', 'link': next_page, 'site': self.SITE}
-        images = { 
-            self.ImageSet.ICON.value: self.ICON_URL,
-            self.ImageSet.FANART.value: self.ICON_URL
-        }
+        images = self.get_default_images()
 
         list_item = {'label': 'Next'}
         self.add_directory(params, list_item, images)
@@ -315,6 +315,54 @@ class Takoyaki(object):
             self.add_default_directory(self.TAG_MODE, link, title, img_url)
         self.end_of_directory()
 
+    GENRE_SELECTOR = "article"
+    GENRE_MODE = "entry"
+    
+    classmethod
+    def get_genre_url(cls, entry): return cls.get_entry_url(entry)
+    @classmethod
+    def get_genre_title(cls, entry): return cls.get_entry_title(entry)
+    @classmethod
+    def get_genre_img_url(cls, entry):
+         return cls.ICON_URL
+
+    def genre_mode(self):
+        link = self.params['link']
+        parser = self.parse_html(link)
+        tags =  parser.select(self.GENRE_SELECTOR)
+            
+        for tag in tags:
+            link = self.get_genre_url(tag)
+            title = self.get_genre_title(tag)
+            img_url = self.get_genre_img_url(tag)
+
+            self.add_default_directory(self.GENRE_MODE, link, title, img_url)
+        self.end_of_directory()
+
+    CATEGORY_SELECTOR = "article"
+    CATEGORY_MODE = "entry"
+    
+    classmethod
+    def get_category_url(cls, entry): return cls.get_entry_url(entry)
+    @classmethod
+    def get_category_title(cls, entry): return cls.get_entry_title(entry)
+    @classmethod
+    def get_category_img_url(cls, entry):
+         return cls.ICON_URL
+
+    def category_mode(self):
+        link = self.params['link']
+        parser = self.parse_html(link)
+        tags =  parser.select(self.CATEGORY_SELECTOR)
+            
+        for tag in tags:
+            link = self.get_category_url(tag)
+            title = self.get_category_title(tag)
+            img_url = self.get_category_img_url(tag)
+
+            self.add_default_directory(self.CATEGORY_MODE, link, title, img_url)
+        self.end_of_directory()      
+        
     LETTER_MODE = "letter_item"
     LETTER_URL_SUFFIX =""
     def get_letter_url(self, letter ):
@@ -364,6 +412,8 @@ class Takoyaki(object):
             self.add_default_directory(self.LETTER_ITEM_MODE, link, title, "")
         self.end_of_directory()
     
+
+    SERIES_MODE = "episode"
     @classmethod
     def get_series_url(cls, entry): return cls.get_entry_url(entry)
     @classmethod
@@ -374,7 +424,7 @@ class Takoyaki(object):
     def series_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        entries = parser.select(self.ENTRY_SELECTOR)
+        entries = parser.select(self.SERIES_SELECTOR)
 
         for entry in entries:
             link = self.get_series_url(entry)
@@ -387,7 +437,7 @@ class Takoyaki(object):
             if link is None or title is None or img_url is None:
                 continue
 
-            self.add_default_directory('episode', link, title, img_url)
+            self.add_default_directory(self.SERIES_MODE, link, title, img_url)
 
         try:
             next_page = self.get_next_page_url(parser)
@@ -397,7 +447,8 @@ class Takoyaki(object):
         
         self.end_of_directory()
 
-    
+    EPISODE_MODE = "play_list"
+
     @classmethod
     def get_episode_url(cls, entry): return cls.get_entry_url(entry)
     @classmethod
@@ -420,7 +471,7 @@ class Takoyaki(object):
             if link is None or title is None or img_url is None:
                 continue
 
-            self.add_default_directory('play_list', link, title, img_url)
+            self.add_default_directory(self.EPISODE_MODE, link, title, img_url)
 
         try:
             next_page = self.get_next_page_url(parser)
@@ -469,26 +520,37 @@ class Takoyaki(object):
 
         raise ValueError("Not found source.")
 
+    def get_default_images(self):
+        img_url = self.params.get("img_url", self.ICON_URL)
+        images = { 
+            self.ImageSet.ICON.value: img_url,
+            self.ImageSet.FANART.value: img_url,
+            self.ImageSet.THUMB.value: img_url}
+        return images
+
+
     def play_list(self):
         link = self.params['link']
         meida_url_lsit = self.get_media_url_list(link)
+        images = self.get_default_images()
+
         if len(meida_url_lsit) == 1:
             meida_url = meida_url_lsit[0]
             if type(meida_url) is str:
-                self.play_media(meida_url, {"label": self.params["title"]})
+                self.play_media(meida_url, {"label": self.params["title"]}, images)
             else:
                 url = meida_url["src"]
                 # label = meida_url["label"]
-                self.play_media(url, {"label": self.params["title"]})
+                self.play_media(url, {"label": self.params["title"]}, images)
             return
 
         for i, meida_url in enumerate(meida_url_lsit, 1):
             if type(meida_url) is str:
-                self.add_default_directory("play", meida_url, "Source " + str(i), self.params.get("imag_url", ""))
+                self.add_default_directory("play", meida_url, "Source " + str(i))
             else:
                 url = meida_url["src"]
                 label = meida_url["label"]
-                self.add_default_directory("play", url, label, self.params.get("imag_url", ""))
+                self.add_default_directory("play", url, label)
 
         self.end_of_directory()
 
@@ -563,6 +625,8 @@ class Takoyaki(object):
                 'series': self.series_mode,
                 'episode': self.episode_mode,
                 'tag_list': self.tag_list_mode,
+                'genre': self.genre_mode,
+                'category': self.category_mode,
                 'search': self.search,
             }
 
