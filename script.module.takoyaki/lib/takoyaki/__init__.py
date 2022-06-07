@@ -16,8 +16,10 @@ from enum import Enum
 
 
 class Takoyaki(object):
+    SITE = ""
     def __init__(self, name):
         self.SEARCH_URL = self.abs_url("?s={}")
+        self.SITE = __name__
 
     class ImageSet(Enum):
         ICON = "icon"
