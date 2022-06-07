@@ -412,6 +412,8 @@ class Takoyaki(object):
             self.add_default_directory(self.LETTER_ITEM_MODE, link, title, "")
         self.end_of_directory()
     
+
+    SERIES_MODE = "episode"
     @classmethod
     def get_series_url(cls, entry): return cls.get_entry_url(entry)
     @classmethod
@@ -422,7 +424,7 @@ class Takoyaki(object):
     def series_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        entries = parser.select(self.ENTRY_SELECTOR)
+        entries = parser.select(self.SERIES_SELECTOR)
 
         for entry in entries:
             link = self.get_series_url(entry)
@@ -435,7 +437,7 @@ class Takoyaki(object):
             if link is None or title is None or img_url is None:
                 continue
 
-            self.add_default_directory('episode', link, title, img_url)
+            self.add_default_directory(self.SERIES_MODE, link, title, img_url)
 
         try:
             next_page = self.get_next_page_url(parser)
@@ -445,7 +447,8 @@ class Takoyaki(object):
         
         self.end_of_directory()
 
-    
+    EPISODE_MODE = "play_list"
+
     @classmethod
     def get_episode_url(cls, entry): return cls.get_entry_url(entry)
     @classmethod
@@ -468,7 +471,7 @@ class Takoyaki(object):
             if link is None or title is None or img_url is None:
                 continue
 
-            self.add_default_directory('play_list', link, title, img_url)
+            self.add_default_directory(self.EPISODE_MODE, link, title, img_url)
 
         try:
             next_page = self.get_next_page_url(parser)
