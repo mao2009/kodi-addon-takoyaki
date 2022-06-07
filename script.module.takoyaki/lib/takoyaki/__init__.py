@@ -332,9 +332,9 @@ class Takoyaki(object):
         tags =  parser.select(self.GENRE_SELECTOR)
             
         for tag in tags:
-            link = self.get_tag_url(tag)
-            title = self.get_tag_title(tag)
-            img_url = self.get_tag_img_url(tag)
+            link = self.get_genre_url(tag)
+            title = self.get_genre_title(tag)
+            img_url = self.get_genre_img_url(tag)
 
             self.add_default_directory(self.GENRE_MODE, link, title, img_url)
         self.end_of_directory()
