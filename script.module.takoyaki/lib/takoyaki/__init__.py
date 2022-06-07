@@ -338,6 +338,30 @@ class Takoyaki(object):
 
             self.add_default_directory(self.GENRE_MODE, link, title, img_url)
         self.end_of_directory()
+
+    CATEGORY_SELECTOR = "article"
+    CATEGORY_MODE = "entry"
+    
+    classmethod
+    def get_category_url(cls, entry): return cls.get_entry_url(entry)
+    @classmethod
+    def get_category_title(cls, entry): return cls.get_entry_title(entry)
+    @classmethod
+    def get_category_img_url(cls, entry):
+         return cls.ICON_URL
+
+    def category_mode(self):
+        link = self.params['link']
+        parser = self.parse_html(link)
+        tags =  parser.select(self.CATEGORY_SELECTOR)
+            
+        for tag in tags:
+            link = self.get_category_url(tag)
+            title = self.get_category_title(tag)
+            img_url = self.get_category_img_url(tag)
+
+            self.add_default_directory(self.CATEGORY_MODE, link, title, img_url)
+        self.end_of_directory()      
         
     LETTER_MODE = "letter_item"
     LETTER_URL_SUFFIX =""
