@@ -253,7 +253,7 @@ class Takoyaki(object):
         return cls.abs_url(next_page)
 
     def add_next_directory(self, parser):
-        next_page = self.get_next_page_url
+        next_page = self.get_next_page_url(parser)
         
         params = {'mode': 'entry', 'link': next_page, 'site': self.SITE}
         images = { 
