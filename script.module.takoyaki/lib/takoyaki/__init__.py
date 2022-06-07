@@ -622,6 +622,8 @@ class Takoyaki(object):
                 'series': self.series_mode,
                 'episode': self.episode_mode,
                 'tag_list': self.tag_list_mode,
+                'genre': self.genre_mode,
+                'category': self.category_mode,
                 'search': self.search,
             }
 
