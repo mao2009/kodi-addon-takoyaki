@@ -148,13 +148,15 @@ class Takoyaki(object):
         xbmcplugin.addDirectoryItem(handle=self.__handle__, url=url, listitem=li, isFolder=False)
 
     @classmethod
-    def play_media(cls, item, list_item, info=None, properties=None):
+    def play_media(cls, item, list_item, images = None, info=None, properties=None):
 
         li = xbmcgui.ListItem(**list_item)
         if info is not None:
             li.setInfo(*info)
         if properties is not None:
             li.setProperty(*properties)
+        if images is not None:
+            li.setArt(images)
         xbmc.Player().play(item=item, listitem=li)
 
     @classmethod
@@ -227,7 +229,8 @@ class Takoyaki(object):
         params = {'mode': mode, 'link': link,'title': title, 'img_url': img_url, 'site': self.SITE}
         images = { 
             self.ImageSet.ICON.value: img_url,
-            self.ImageSet.FANART.value: img_url
+            self.ImageSet.FANART.value: img_url,
+            self.ImageSet.THUMB.value: img_url
         }
 
         list_item = {"label" : title}
@@ -256,10 +259,7 @@ class Takoyaki(object):
         next_page = self.get_next_page_url(parser)
         
         params = {'mode': 'entry', 'link': next_page, 'site': self.SITE}
-        images = { 
-            self.ImageSet.ICON.value: self.ICON_URL,
-            self.ImageSet.FANART.value: self.ICON_URL
-        }
+        images = self.get_default_images()
 
         list_item = {'label': 'Next'}
         self.add_directory(params, list_item, images)
@@ -469,26 +469,37 @@ class Takoyaki(object):
 
         raise ValueError("Not found source.")
 
+    def get_default_images(self):
+        img_url = self.params.get("img_url", self.ICON_URL)
+        images = { 
+            self.ImageSet.ICON.value: img_url,
+            self.ImageSet.FANART.value: img_url,
+            self.ImageSet.THUMB.value: img_url}
+        return images
+
+
     def play_list(self):
         link = self.params['link']
         meida_url_lsit = self.get_media_url_list(link)
+        images = self.get_default_images()
+
         if len(meida_url_lsit) == 1:
             meida_url = meida_url_lsit[0]
             if type(meida_url) is str:
-                self.play_media(meida_url, {"label": self.params["title"]})
+                self.play_media(meida_url, {"label": self.params["title"]}, images)
             else:
                 url = meida_url["src"]
                 # label = meida_url["label"]
-                self.play_media(url, {"label": self.params["title"]})
+                self.play_media(url, {"label": self.params["title"]}, images)
             return
 
         for i, meida_url in enumerate(meida_url_lsit, 1):
             if type(meida_url) is str:
-                self.add_default_directory("play", meida_url, "Source " + str(i), self.params.get("imag_url", ""))
+                self.add_default_directory("play", meida_url, "Source " + str(i))
             else:
                 url = meida_url["src"]
                 label = meida_url["label"]
-                self.add_default_directory("play", url, label, self.params.get("imag_url", ""))
+                self.add_default_directory("play", url, label)
 
         self.end_of_directory()
 
