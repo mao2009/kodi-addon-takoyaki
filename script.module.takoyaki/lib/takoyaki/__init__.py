@@ -1,8 +1,11 @@
-import os
+from cmath import e
+from statistics import median
 import sys
 import re
-from urllib.parse import urljoin, urlencode, parse_qs, urlparse
+from urllib.parse import urlparse
 import requests
+import importlib
+from typing import List, Dict, Optional, Union
 
 from bs4 import BeautifulSoup
 
@@ -12,44 +15,45 @@ import xbmcgui
 import xbmcaddon
 import xbmcplugin
 
-from enum import Enum
+from takoyaki.utilites import (PresetMode, ImageSet, LogLevel,
+                                log, path_join, url_join, build_url,
+                                parse_parameter, normalaze_query, get_page_index)
 
 
 class Takoyaki(object):
-    SITE = ""
-    def __init__(self, name):
-        self.SEARCH_URL = self.abs_url("?s={}")
-        self.SITE = __name__
 
-    class ImageSet(Enum):
-        ICON = "icon"
-        THUMB = "thumb"
-        FANART = "fanart"
-
-    class LogLevel(Enum):
-        DEBUG = xbmc.LOGDEBUG
-        INFO = xbmc.LOGINFO
-        # NOTICE = xbmc.LOGNOTICE
-        WARNING = xbmc.LOGWARNING
-        ERROR = xbmc.LOGERROR
-        # SEVERE = xbmc.LOGSEVERE
-        FATAL = xbmc.LOGFATAL
-        NONE  = xbmc.LOGNONE     
-
-    __base__url = sys.argv[0]
+    __base__url:str = sys.argv[0]
     __handle__ = int(sys.argv[1])
     __addon__ = xbmcaddon.Addon()
     __takoyaki_id = 'script.module.takoyaki'
-    __addon_id__ = __addon__.getAddonInfo('id')
+    __addon_id__: str = __addon__.getAddonInfo('id')
 
+    PresetMode = PresetMode
+    ImageSet = ImageSet
+    LogLevel = LogLevel
+    log = log
+    path_join = path_join
+    url_join = url_join
+    build_url = build_url
+    parse_parameter = parse_parameter
+    normalaze_query = normalaze_query
+    get_page_index = get_page_index()
+
+    USER_AGENT = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
+    
+    BASE_URL =""
+    ICON_URL = ""
+    __DEFAULT_SELECTOR = "article"
     def __init__(self):
+        self.__addon_user_data__: str = xbmcvfs.translatePath(path_join('special://userdata/addon_data', self.__addon_id__))
+        self.params = parse_parameter()
+        self.MODULE_NAME = self.params.get("module_name")
 
-        self.__addon_user_data__ = xbmcvfs.translatePath(self.path_join('special://userdata/addon_data', self.__addon_id__))
-        self.params = self.parse_parameter()
         self.is_login = self.__addon__.getSetting('login')
+
         if self.is_login:
-            self.password = self.__addon__.getSetting('password')
-            self.username = self.__addon__.getSetting('username')
+            self.password: str = self.__addon__.getSetting('password')
+            self.username: str = self.__addon__.getSetting('username')
         self.session = self.open_session()
 
     def set_basic_auth(self, user, password):
@@ -61,16 +65,20 @@ class Takoyaki(object):
         session.headers.update(headers)
         return session
 
-    def run(self):
-        modes = None
-        self.select_mode(modes)
+    
+    def import_module(self):
+        module_name = self.params.get('module_name')
+        if module_name is None:
+            self.module_list_mode()
+        else:
+            importlib.import_module(module_name).open()
 
-    def select_mode(self, modes, default_mode='top_menu'):
+    def select_mode(self, modes: Dict[str, object], default_mode='top_menu'):
         mode = self.params.get('mode', default_mode)
         selected_mode = modes.get(mode)
         selected_mode()
 
-    def login(self, login_url, query, mode='post'):
+    def login(self, login_url: str, query: Dict[str, str], mode='post'):
 
         if mode == 'get' or mode == 'g':
             self.session.get(login_url,  params=query)
@@ -79,36 +87,7 @@ class Takoyaki(object):
         else:
             raise ValueError('Unexpected mode')
 
-    @classmethod
-    def path_join(cls, path, *paths):
-        return os.path.join(path, *paths).replace('\\', '/')
-
-    @classmethod
-    def url_join(cls, base, *urls):
-        jointed_url = base
-        for url in urls:
-            jointed_url = urljoin(jointed_url,url)
-        return jointed_url
-
-    @classmethod
-    def abs_url(cls, *urls):
-
-        url = cls.url_join("", *urls)
-        base = cls.BASE_URL.rstrip("/")
-        url = url.replace(base, "")
-
-        return cls.url_join(cls.BASE_URL, url)
-
-    @classmethod
-    def build_url(cls, query):
-        return sys.argv[0] + '?' + urlencode(query)
-
-    @classmethod
-    def parse_parameter(cls):
-        params = parse_qs(sys.argv[2][1:])
-        return {key: value[0] for key, value in params.items()}
-
-    def download_html(self, url, mode='get', query={}):
+    def download_html(self, url: str, mode='get', query: Dict[str, str] ={}) -> str: 
 
         if mode == 'get' or mode == 'g':
             return self.session.get(url, params=query).text
@@ -117,7 +96,7 @@ class Takoyaki(object):
 
         raise ValueError('Unexpected mode')
 
-    def parse_html(self, string):
+    def parse_html(self, string: str) -> BeautifulSoup:
         if len(urlparse(string).scheme) >= 1:
             html = self.download_html(string)
         else:
@@ -129,15 +108,15 @@ class Takoyaki(object):
             xbmcplugin.setContent(self.__handle__, mode)
         xbmcplugin.endOfDirectory(self.__handle__)
 
-    def add_directory(self, param, list_item, images=None):
+    def add_directory(self, param: Dict[str, str], list_item: Dict[str, str], images: Dict[str, str]=None):
         li = xbmcgui.ListItem(**list_item)
         if images is not None:
             li.setArt(images)
 
-        param_url = self.build_url(param)
+        param_url = build_url(param)
         xbmcplugin.addDirectoryItem(handle=self.__handle__, url=param_url, listitem=li, isFolder=True)
 
-    def add_media_file(self, url, list_item, images=None, info=None, properties=None):
+    def add_media_file(self, url: str, list_item: Dict[str, str], images: Dict[str, str]=None, info: Dict[str, str]=None, properties: Dict[str, str]=None):
         li = xbmcgui.ListItem(**list_item)
         if images is not None:
             li.setArt(images)
@@ -148,7 +127,7 @@ class Takoyaki(object):
         xbmcplugin.addDirectoryItem(handle=self.__handle__, url=url, listitem=li, isFolder=False)
 
     @classmethod
-    def play_media(cls, item, list_item, images = None, info=None, properties=None):
+    def play_media(cls, item: str, list_item: Dict[str, str], images: Dict[str, str]=None, info: Dict[str, str]=None, properties: Dict[str, str]=None):
 
         li = xbmcgui.ListItem(**list_item)
         if info is not None:
@@ -160,62 +139,77 @@ class Takoyaki(object):
         xbmc.Player().play(item=item, listitem=li)
 
     @classmethod
-    def log(cls, message, log_level):
-        xbmc.log(message, log_level.value)
+    def abs_url(cls, *urls: str) -> str:
+        url = url_join("", *urls)
+
+        if url is None:
+            return
+
+        if len(urlparse(url).scheme) >= 1:
+            return url
+        
+        if url.startswith("//"):
+            scheme = urlparse(cls.BASE_URL).scheme
+            return scheme + ":" + url
+
+        return url_join(cls.BASE_URL, url)
 
     @classmethod
-    def get_search_string(cls, message='', heading=''):
-        search_string = None
+    def get_search_string(cls, message='', heading='') -> str:
+        search_string: str = None
         keyboard = xbmc.Keyboard(message, heading)
         keyboard.doModal()
         if keyboard.isConfirmed():
             search_string = keyboard.getText()
         return search_string
-
-    USER_AGENT = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-    BASE_URL =""
-    SEARCH_URL = ""
-    ICON_URL = ""
     
-    ENTRY_SELECTOR = "article"
-    SERIES_SELECTOR = ENTRY_SELECTOR
-    EPISODE_SELECTOR = ENTRY_SELECTOR
-
+    entry_selector = __DEFAULT_SELECTOR
+    seriese_selector = __DEFAULT_SELECTOR
+    episode_selector = __DEFAULT_SELECTOR
 
     @classmethod
-    def get_entry_url(cls, entry):
-        if len(entry.select("a")) >= 1:
-            element = entry.a
-        else:
-            element = entry
+    def get_entry_url(cls, element: BeautifulSoup) -> Optional[str]:
 
-        url = element.get("href", None)
-        if url is not None:
-            return cls.abs_url(url)
-        url = element.get("href", None)
+        url = cls.get_href(element)
         if url is None:
-            return None
+            None
+        
         return cls.abs_url(url)
 
     @classmethod
-    def get_entry_title(cls, entry: BeautifulSoup):
-        if len(entry.select("a")) >= 1:
-            element = entry.a
+    def get_entry_title(cls, element: BeautifulSoup) -> Optional[str]:
+
+        if element.name == "a":
+            a = element
+        elif cls.exists(element.a):
+            a = element.a
         else:
-            element = entry
+            a = None
 
-        title = element.get("title", None)
-        if title is None:
-            title = element.text.strip()
+        if cls.exists(a):
+            title = a.get("title", a.text.strip())
+        else:
+            title = ""
 
-        return title if  title != "" else None
+        if title != "":
+            return title
+
+        if element.name == "img":
+            img = element
+        elif cls.exists(element.img):
+            img = element.img
+        else:
+            img = None
+
+        if cls.exists(img):
+            return img.get("alt")
+        
+        return None
 
     @classmethod
-    def get_entry_img_url(cls, entry: BeautifulSoup):
-        if entry.img is None:
-            element = entry
-        else:
-            element = entry.img
+    def get_entry_img_url(cls, element: BeautifulSoup):
+        if element.img is not None:
+            element = element.img
 
         img_url = element.get("data-src", None)
         if img_url is None:
@@ -225,283 +219,356 @@ class Takoyaki(object):
             return None
         return cls.abs_url(img_url)
 
-    def add_default_directory(self, mode, link, title, img_url):
-        params = {'mode': mode, 'link': link,'title': title, 'img_url': img_url, 'site': self.SITE}
+    def add_default_directory(self, mode: str, link: str, title: str, img_url: str, **ex_params):
+        params = {'mode': mode, 'link': link,'title': title, 'img_url': img_url, 'module_name': self.MODULE_NAME}
         images = { 
-            self.ImageSet.ICON.value: img_url,
-            self.ImageSet.FANART.value: img_url,
-            self.ImageSet.THUMB.value: img_url
+            self.ImageSet.ICON: img_url,
+            self.ImageSet.FANART: img_url,
+            self.ImageSet.THUMB: img_url
         }
 
         list_item = {"label" : title}
+
+        if len(ex_params) >= 1:
+            params.update(ex_params)
+             
         self.add_directory(params, list_item, images)
     
-    @classmethod
-    def get_next_page_url(cls, parser):
-        next_page = parser.select('.next')
+    def exclud_default_params(self, params) -> Dict[str, str]:
+        return {key: value for key, value  in params.items() if not key in ("mode", "link", "title", "img_url", "module_name")}
 
-        if len(next_page) == 0:
-            next_page = parser.select('[rel="next"]')
+    NEXT_PAGE_ERROR_LIST = (KeyError, AttributeError, IndexError)
 
-        if len(next_page) == 0:
+    next_page_selector = ".next"
+
+    def get_next_page_url(self, parser: BeautifulSoup) -> Optional[str]:
+        def get_url(selector):
+            elements = parser.select(selector)
+            if len(elements) >= 1:
+                element = elements[0]
+                next_page = self.get_href(element)
+                if self.exists(next_page):
+                    return self.abs_url(next_page)
             return None
 
-        if len(next_page.select("a")) != 0:
-            next_page = next_page.a
-        else:
-            next_page = next_page[0]
+        next_page = get_url(self.next_page_selector)
+        if self.exists(next_page):
+            return next_page
+
+        next_page = get_url(".next")
+        if self.exists(next_page):
+            return next_page
+
+        next_page = get_url("[rel='next']")
+        if self.exists(next_page):
+            return next_page
+
+        # if len(elements) >= 1:
+        #     element = elements[0]
+        #     next_page = self.get_href(element)
+        #     if self.exists(next_page):
+        #         return self.abs_url(next_page)
         
-        next_page = next_page["href"]
+        # elements = parser.select('.next')
 
-        return cls.abs_url(next_page)
+        # next_page = self.get_href(element)
+        # if self.exists(next_page):
+        #     return self.abs_url(next_page)
 
-    def add_next_directory(self, parser):
+        # element = parser.select('[rel="next"]')[0]
+        # next_page = self.get_href(element)
+        # if self.exists(next_page):
+        #     return self.abs_url(next_page)
+
+        return None
+
+    @classmethod
+    def get_href(cls, element: BeautifulSoup) -> Optional[str]:
+        if element.has_attr("href"):
+            return element["href"]
+
+        if element.name == "a":
+            a = element
+        elif cls.exists(element.a):
+            a = element.a
+        else:
+            return None
+        
+        return a.get("href")
+    @classmethod
+    def exists(cls, obj) -> bool:
+        return obj is not None
+
+
+    def add_next_directory(self, parser: BeautifulSoup):
         next_page = self.get_next_page_url(parser)
         
-        params = {'mode': 'entry', 'link': next_page, 'site': self.SITE}
+        params = {'mode': 'entry', 'link': next_page, 'module_name': self.MODULE_NAME}
         images = self.get_default_images()
 
         list_item = {'label': 'Next'}
         self.add_directory(params, list_item, images)
         
-    ENTRY_MODE = "play_list"
+    entry_directory_mode = "play_list"
     def entry_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        entries = parser.select(self.ENTRY_SELECTOR)
+        elements = parser.select(self.entry_selector)
 
-        for entry in entries:
-            link = self.get_entry_url(entry)
+        for element in elements:
+            link = self.get_entry_url(element)
 
-            title = self.get_entry_title(entry)
+            title = self.get_entry_title(element)
             
-            img_url = self.get_entry_img_url(entry)
-
-
+            img_url = self.get_entry_img_url(element)
+           
             if link is None or title is None or img_url is None:
                 continue
-
-            self.add_default_directory(self.ENTRY_MODE, link, title, img_url)
+            
+            self.add_default_directory(self.entry_directory_mode, link, title, img_url, media_title=title)
 
         try:
             next_page = self.get_next_page_url(parser)
             self.add_default_directory("entry", next_page, "Next", self.ICON_URL)
-        except (AttributeError, IndexError):
+        except self.NEXT_PAGE_ERROR_LIST as ex:
             pass
         
         self.end_of_directory()
 
-    TAG_LIST_SELECTOR = ".tagcloud a"
-    TAG_MODE = "entry"
+    tag_selector = ".tagcloud a"
+    tag_directory_mode = "entry"
 
     @classmethod
-    def get_tag_url(cls, entry): return cls.get_entry_url(entry)
+    def get_tag_url(cls, element: BeautifulSoup) -> str: return cls.get_entry_url(element)
     @classmethod
-    def get_tag_title(cls, entry): return cls.get_entry_title(entry)
+    def get_tag_title(cls, element: BeautifulSoup) -> str: return cls.get_entry_title(element)
     @classmethod
-    def get_tag_img_url(cls, entry):
+    def get_tag_img_url(cls, element: BeautifulSoup) -> str:
+         return cls.ICON_URL
+    
+    def tag_mode(self):
+        link = self.params['link']
+        parser = self.parse_html(link)
+        elements =  parser.select(self.tag_selector)
+
+        for element in elements:
+            link = self.get_tag_url(element)
+            title = self.get_tag_title(element)
+            img_url = self.get_tag_img_url(element)
+
+            self.add_default_directory(self.tag_directory_mode, link, title, img_url)
+        self.end_of_directory()
+
+    tag_list_selector = ".tagcloud a"
+    tag_list_directory_mode = "entry"
+
+    @classmethod
+    def get_tag_list_url(cls, element: BeautifulSoup) -> str: return cls.get_entry_url(element)
+    @classmethod
+    def get_tag_list_title(cls, element: BeautifulSoup) -> str: return cls.get_entry_title(element)
+    @classmethod
+    def get_tag_list_img_url(cls, element: BeautifulSoup) -> str:
          return cls.ICON_URL
     
     def tag_list_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        tags =  parser.select(self.TAG_LIST_SELECTOR)
-            
-        for tag in tags:
-            link = self.get_tag_url(tag)
-            title = self.get_tag_title(tag)
-            img_url = self.get_tag_img_url(tag)
+        elements =  parser.select(self.tag_list_selector)
 
-            self.add_default_directory(self.TAG_MODE, link, title, img_url)
+        for element in elements:
+            link = self.get_tag_url(element)
+            title = self.get_tag_title(element)
+            img_url = self.get_tag_img_url(element)
+
+            self.add_default_directory(self.tag_list_directory_mode, link, title, img_url)
         self.end_of_directory()
 
-    GENRE_SELECTOR = "article"
-    GENRE_MODE = "entry"
+    genre_selector = "article"
+    genre_directory_mode = "entry"
     
     classmethod
-    def get_genre_url(cls, entry): return cls.get_entry_url(entry)
+    def get_genre_url(cls, element: BeautifulSoup) -> str: return cls.get_entry_url(element)
     @classmethod
-    def get_genre_title(cls, entry): return cls.get_entry_title(entry)
+    def get_genre_title(cls, element: BeautifulSoup) -> str: return cls.get_entry_title(element)
     @classmethod
-    def get_genre_img_url(cls, entry):
+    def get_genre_img_url(cls, element: BeautifulSoup) -> str:
          return cls.ICON_URL
 
     def genre_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        tags =  parser.select(self.GENRE_SELECTOR)
+        elements =  parser.select(self.genre_selector)
             
-        for tag in tags:
-            link = self.get_genre_url(tag)
-            title = self.get_genre_title(tag)
-            img_url = self.get_genre_img_url(tag)
+        for element in elements:
+            link = self.get_genre_url(element)
+            title = self.get_genre_title(element)
+            img_url = self.get_genre_img_url(element)
 
-            self.add_default_directory(self.GENRE_MODE, link, title, img_url)
+            self.add_default_directory(self.genre_directory_mode, link, title, img_url)
+
+
         self.end_of_directory()
 
-    CATEGORY_SELECTOR = "article"
-    CATEGORY_MODE = "entry"
+    catetgory_selector = "artcle"
+    category_directory_mode = "entry"
     
     classmethod
-    def get_category_url(cls, entry): return cls.get_entry_url(entry)
+    def get_category_url(cls, element: BeautifulSoup) -> str: return cls.get_entry_url(element)
     @classmethod
-    def get_category_title(cls, entry): return cls.get_entry_title(entry)
+    def get_category_title(cls, element: BeautifulSoup) -> str: return cls.get_entry_title(element)
     @classmethod
-    def get_category_img_url(cls, entry):
+    def get_category_img_url(cls, element: BeautifulSoup) -> str:
          return cls.ICON_URL
 
     def category_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        tags =  parser.select(self.CATEGORY_SELECTOR)
+        elements =  parser.select(self.catetgory_selector)
             
-        for tag in tags:
-            link = self.get_category_url(tag)
-            title = self.get_category_title(tag)
-            img_url = self.get_category_img_url(tag)
+        for elemnt in elements:
+            link = self.get_category_url(elemnt)
+            title = self.get_category_title(elemnt)
+            img_url = self.get_category_img_url(elemnt)
 
-            self.add_default_directory(self.CATEGORY_MODE, link, title, img_url)
+            self.add_default_directory(self.category_directory_mode, link, title, img_url)
         self.end_of_directory()      
         
-    LETTER_MODE = "letter_item"
-    LETTER_URL_SUFFIX =""
-    def get_letter_url(self, letter ):
-        url_suffix = "0-9" if letter == "#" else letter
-        url = self.url_join(self.BASE_URL, self.LETTER_URL_SUFFIX + url_suffix)
-        return url
-
-    def letter_mode(self):
-        letters = ["#","A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K",
+    letter_directory_mode = "letter_item"
+    letter_url_suffix =""
+    letters =  ["#","A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K",
                         "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 
-        for letter in letters:
+    def get_letter_url(self, letter: str) -> str:
+        return self.params["link"]
+
+    def letter_mode(self):
+
+        for letter in self.letters:
             url = self.get_letter_url(letter)
-  
-            self.add_default_directory(self.LETTER_MODE, url, letter, self.ICON_URL)
+
+            self.add_default_directory(self.letter_directory_mode, url, letter, self.ICON_URL)
 
         self.end_of_directory()
     
-    LETTER_SELECTOR = "li"
-    LETTER_ITEM_MODE = "series"
+    letter_item_selector = "li"
+    letter_item_directory_selector = "series"
+
     @classmethod
-    def get_letter_item_url(cls, entry): return cls.get_entry_url(entry)
+    def get_letter_item_url(cls, element: BeautifulSoup) -> str: return cls.get_entry_url(element)
     @classmethod
-    def get_letter_item_title(cls, entry): return cls.get_entry_title(entry)
+    def get_letter_item_title(cls, element: BeautifulSoup) -> str: return cls.get_entry_title(element)
     
     @classmethod
-    def get_item_list_by_letter(cls,letter, items):
+    def get_item_list_by_letter(cls, letter: str, items: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        
         items = [item for item in items if item["title"] is not None]
         if letter == "#":
-            return [item for item in items if item["title"][0] >= "0" and item["title"][0] <= "9" ]
+            return [item for item in items if item["title"][0].upper() < "A" or item["title"][0].upper() > "Z"]
         else:
-            return [item for item in items if item["title"][0].upper() == letter]
+            return [item for item in items if item["title"][0].upper() == letter.upper()]
 
     def letter_item_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        entries = parser.select(self.LETTER_SELECTOR)
+        entries = parser.select(self.letter_item_selector)
         letter = self.params["title"]
         items = [{"link": self.get_letter_item_url(item),
                 "title": self.get_letter_item_title(item)}
                 for item in entries]
+
         items = self.get_item_list_by_letter(letter, items)
         for item in items:
             link = item["link"]
             title = item["title"]
 
-            self.add_default_directory(self.LETTER_ITEM_MODE, link, title, "")
+            self.add_default_directory(self.letter_item_directory_selector, link, title, "", letter=letter)
         self.end_of_directory()
-    
 
-    SERIES_MODE = "episode"
+    series_directory_mode = "episode"
     @classmethod
-    def get_series_url(cls, entry): return cls.get_entry_url(entry)
+    def get_series_url(cls, element: BeautifulSoup) -> str: return cls.get_entry_url(element)
     @classmethod
-    def get_series_title(cls, entry): return cls.get_entry_title(entry)
+    def get_series_title(cls, element: BeautifulSoup) -> str: return cls.get_entry_title(element)
     @classmethod
-    def get_series_img_url(cls, entry): return cls.get_entry_img_url(entry)
+    def get_series_img_url(cls, element: BeautifulSoup) -> str: return cls.get_entry_img_url(element)
 
     def series_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        entries = parser.select(self.SERIES_SELECTOR)
+        elements = parser.select(self.seriese_selector)
 
-        for entry in entries:
-            link = self.get_series_url(entry)
+        for element in elements:
+            link = self.get_series_url(element)
 
-            title = self.get_series_title(entry)
+            title = self.get_series_title(element)
             
-            img_url = self.get_series_img_url(entry)
+            img_url = self.get_series_img_url(element)
 
 
             if link is None or title is None or img_url is None:
                 continue
 
-            self.add_default_directory(self.SERIES_MODE, link, title, img_url)
+            self.add_default_directory(self.series_directory_mode, link, title, img_url, series_title=title)
 
         try:
             next_page = self.get_next_page_url(parser)
             self.add_default_directory("series", next_page, "Next", self.ICON_URL)
-        except (AttributeError, IndexError):
+        except self.NEXT_PAGE_ERROR_LIST:
             pass
         
         self.end_of_directory()
 
-    EPISODE_MODE = "play_list"
+    episode_directory_mode = "play_list"
 
     @classmethod
-    def get_episode_url(cls, entry): return cls.get_entry_url(entry)
+    def get_episode_url(cls, element: BeautifulSoup) -> str: return cls.get_entry_url(element)
     @classmethod
-    def get_episode_title(cls, entry): return cls.get_entry_title(entry)
+    def get_episode_title(cls, element: BeautifulSoup) -> str: return cls.get_entry_title(element)
     @classmethod
-    def get_episode_img_url(cls, entry): return cls.get_entry_img_url(entry)
+    def get_episode_img_url(cls, element: BeautifulSoup) -> str: return cls.get_entry_img_url(element)
+
     def episode_mode(self):
         link = self.params['link']
         parser = self.parse_html(link)
-        entries = parser.select(self.EPISODE_SELECTOR)
+        elements = parser.select(self.episode_selector)
+        series_title = self.params.get("series_title")
+        for element in elements:
+            link = self.get_episode_url(element)
 
-        for entry in entries:
-            link = self.get_episode_url(entry)
-
-            title = self.get_episode_title(entry)
+            title = self.get_episode_title(element)
             
-            img_url = self.get_episode_img_url(entry)
+            img_url = self.get_episode_img_url(element)
 
 
             if link is None or title is None or img_url is None:
                 continue
-
-            self.add_default_directory(self.EPISODE_MODE, link, title, img_url)
+            
+            self.add_default_directory(self.episode_directory_mode, link, title, img_url, series_title=series_title, episode_title=title)
 
         try:
             next_page = self.get_next_page_url(parser)
             self.add_default_directory("episode", next_page, "Next", self.ICON_URL)
-        except (AttributeError, IndexError):
+        except self.NEXT_PAGE_ERROR_LIST:
             pass
         
         self.end_of_directory()
 
-
-    @classmethod
-    def normalaze_query(cls, query):
-        return query.strip().replace(" ", "+")
-
     def search(self):
 
         query = self.get_search_string()
-        query = self.normalaze_query(query)
+        query = normalaze_query(query)
         
         url = self.params['link'].format(query)
         mode = self.params.get("target_mode", "entry")
     
-        params = {'mode': mode, 'site': self.SITE, 'link': url}
+        params = {'mode': mode, 'module_name': self.MODULE_NAME, 'link': url}
         list_item = {'label': query}
         self.add_directory(params, list_item)
         self.end_of_directory()
 
-    def get_media_url_list(self, url):
+    def get_media_url_list(self, url) -> Union[List[str], List[Dict[str, str]]]:
         reg = re.compile('file"? ?: ?"(.+?)"')
-        media_url_list = []
+        media_url_list: list[str] = []
 
         html = self.download_html(url)
         result = reg.findall(html)
@@ -520,34 +587,54 @@ class Takoyaki(object):
 
         raise ValueError("Not found source.")
 
-    def get_default_images(self):
+    def get_default_images(self) -> Dict[str, str]:
         img_url = self.params.get("img_url", self.ICON_URL)
         images = { 
-            self.ImageSet.ICON.value: img_url,
-            self.ImageSet.FANART.value: img_url,
-            self.ImageSet.THUMB.value: img_url}
+            self.ImageSet.ICON: img_url,
+            self.ImageSet.FANART: img_url,
+            self.ImageSet.THUMB: img_url}
         return images
 
+    def get_media_title(self):
+        if "media_title" in self.params:
+            return self.params["media_title"]
+       
+        series_title = self.params["series_title"] if "series_title" in self.params else ""
+        episode_title = self.params["episode_title"] if "episode_title" in self.params else ""
+
+        media_title = series_title
+
+        if media_title != "" and episode_title != "":
+            media_title += " - "
+        else:
+            return self.params["title"]
+        
+        media_title += episode_title
+        
+        return media_title
 
     def play_list(self):
         link = self.params['link']
         meida_url_lsit = self.get_media_url_list(link)
         images = self.get_default_images()
-
+        title = self.get_media_title()
+        
         if len(meida_url_lsit) == 1:
             meida_url = meida_url_lsit[0]
             if type(meida_url) is str:
-                self.play_media(meida_url, {"label": self.params["title"]}, images)
-            else:
+                self.play_media(meida_url, {"label": title}, images)
+
+            elif type(meida_url) is dict:
                 url = meida_url["src"]
-                # label = meida_url["label"]
-                self.play_media(url, {"label": self.params["title"]}, images)
+                self.play_media(url, {"label": title}, images)
+                
             return
 
         for i, meida_url in enumerate(meida_url_lsit, 1):
             if type(meida_url) is str:
                 self.add_default_directory("play", meida_url, "Source " + str(i))
-            else:
+
+            elif type(meida_url) is dict:
                 url = meida_url["src"]
                 label = meida_url["label"]
                 self.add_default_directory("play", url, label)
@@ -555,83 +642,94 @@ class Takoyaki(object):
         self.end_of_directory()
 
     def play(self):
+        title = title = self.get_media_title()
+        
         link = self.params['link']
-        self.play_media(link, {"label": self.params["title"]})
+        self.play_media(link, {"label": title})
 
 
-    MEDIA_FILE_SELECTOR = ".thumb"
+    media_file_selector = "article"
     @classmethod
-    def get_media_file_url(cls, entry): return cls.get_entry_url(entry)
+    def get_media_file_url(cls, element: BeautifulSoup) -> str: return cls.get_entry_url(element)
     @classmethod
-    def get_media_file_title(cls, entry): return cls.get_entry_title(entry)
+    def get_media_file_title(cls, element: BeautifulSoup) -> str: return cls.get_entry_title(element)
     @classmethod
-    def get_media_file_img_url(cls, entry): return cls.get_entry_img_url(entry)
+    def get_media_file_img_url(cls, element: BeautifulSoup) -> str: return cls.get_entry_img_url(element)
 
     def media_file_mode(self):
         link = self.params['link']
         
         parser = self.parse_html(link)
-        entries = parser.select(self.MEDIA_FILE_SELECTOR)
-        for entry in entries:
-            link = self.get_media_file_url(entry)
-            title = self.get_media_file_title(entry)
+        elements = parser.select(self.media_file_selector)
+        for element in elements:
+            link = self.get_media_file_url(element)
+            title = self.get_media_file_title(element)
             if title is None:
-                title = "Page " + str(next(self.generate_page_index))
+                title = "Page " + str(next(self.get_page_index))
 
-            img_url = self.get_media_file_img_url(entry)
+            if link is None:
+                continue
+
+            img_url = self.get_media_file_img_url(element)
             list_item = {'label': title}
-            images = {self.ImageSet.THUMB.value: img_url}
-            self.add_media_file(img_url, list_item=list_item, images=images)
+            images = {self.ImageSet.THUMB: img_url}
+            self.add_media_file(link, list_item=list_item, images=images)
         self.end_of_directory()
 
-    def get_page_index():
-        index = 1
-        while True:
-            yield index
-            index += 1
-
-    generate_page_index = get_page_index()
-
-    def get_top_menus(self):
+    def get_top_menus(self) -> List[Dict[str, str]]:
         menus = [
             {'title': 'Home',
                 'mode': 'entry',
                 'link': self.BASE_URL},
             {'title': 'Search',
                 'mode': "search",
-                'target_mode': "entrys",
-                "link": self.SEARCH_URL}
+                'target_mode': "entry",
+                "link": self.search_url}
         ]
 
         return menus
+
+    def get_module_list(self) -> List[Dict[str, str]]: return []
+
+    def module_list_mode(self):
+        for module in self.get_module_list():
+            list_item = {'label' : module['title']}
+            images = { self.ImageSet.ICON: module.get('img_url', None), 
+                       self.ImageSet.FANART: module.get('fanart', None)}
+                       
+            self.add_directory(module, list_item, images)
+
+        self.end_of_directory()
 
     def top_menu(self):
         menus = self.get_top_menus()
 
         for menu in menus:
-
-            self.add_default_directory(menu["mode"], menu["link"], menu['title'],"")
+            excluded =self.exclud_default_params(menu)
+            self.add_default_directory(menu["mode"], menu["link"], menu['title'],"", **excluded)
         self.end_of_directory()
 
-    def run(self):
-        modes = {
-                'top_menu': self.top_menu,
-                'entry': self.entry_mode,
-                'play_list': self.play_list,
-                'play': self.play,
-                'media_file': self.media_file_mode,
-                'letters': self.letter_mode,
-                'letter_item': self.letter_item_mode,
-                'series': self.series_mode,
-                'episode': self.episode_mode,
-                'tag_list': self.tag_list_mode,
-                'genre': self.genre_mode,
-                'category': self.category_mode,
-                'search': self.search,
+    def get_mode_list(self) -> dict:
+            return {
+                self.PresetMode.TOP_MENU: self.top_menu,
+                self.PresetMode.ENTRY: self.entry_mode,
+                self.PresetMode.PLAY_LIST: self.play_list,
+                self.PresetMode.PLAY: self.play,
+                self.PresetMode.MEDIA_FILE: self.media_file_mode,
+                self.PresetMode.LETTER: self.letter_mode,
+                self.PresetMode.LETTER_ITME: self.letter_item_mode,
+                self.PresetMode.SERIES: self.series_mode,
+                self.PresetMode.EPISODE: self.episode_mode,
+                self.PresetMode.TAG: self.tag_mode,
+                self.PresetMode.TAG_LIST: self.tag_list_mode,
+                self.PresetMode.GENRE: self.genre_mode,
+                self.PresetMode.CATEGORY: self.category_mode,
+                self.PresetMode.SEARCH: self.search,
             }
-
+            
+    def run(self):
+        modes = self.get_mode_list()
         self.select_mode(modes)
     
     def open(self):
         self.run()
-      
