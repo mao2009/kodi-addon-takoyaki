@@ -1,5 +1,3 @@
-from cmath import e
-from statistics import median
 import sys
 import re
 from urllib.parse import urlparse
