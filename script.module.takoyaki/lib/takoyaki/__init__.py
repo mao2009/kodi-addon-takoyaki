@@ -1,5 +1,3 @@
-from cmath import e
-from statistics import median
 import sys
 import re
 from urllib.parse import urlparse
@@ -262,24 +260,6 @@ class Takoyaki(object):
         next_page = get_url("[rel='next']")
         if self.exists(next_page):
             return next_page
-
-        # if len(elements) >= 1:
-        #     element = elements[0]
-        #     next_page = self.get_href(element)
-        #     if self.exists(next_page):
-        #         return self.abs_url(next_page)
-        
-        # elements = parser.select('.next')
-
-        # next_page = self.get_href(element)
-        # if self.exists(next_page):
-        #     return self.abs_url(next_page)
-
-        # element = parser.select('[rel="next"]')[0]
-        # next_page = self.get_href(element)
-        # if self.exists(next_page):
-        #     return self.abs_url(next_page)
-
         return None
 
     @classmethod
@@ -295,14 +275,16 @@ class Takoyaki(object):
             return None
         
         return a.get("href")
+
     @classmethod
     def exists(cls, obj) -> bool:
         return obj is not None
 
-
     def add_next_directory(self, parser: BeautifulSoup):
         next_page = self.get_next_page_url(parser)
-        
+        if next_page is None:
+            return
+
         params = {'mode': 'entry', 'link': next_page, 'module_name': self.MODULE_NAME}
         images = self.get_default_images()
 
